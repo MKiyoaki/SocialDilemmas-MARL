@@ -19,7 +19,7 @@ class AbstractExperimentHandle:
             self.config_dict_list = json.load(f)
         self.experiment_name = self.config_dict_list[0].get('experiment_name', 'default_experiment')
 
-    def run_exp(self):
+    def run_exp(self, **kwargs):
         """
         Run the main experiment.
         Must be implemented in the subclass.

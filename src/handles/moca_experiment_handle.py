@@ -13,7 +13,7 @@ from src.handles.handles import AbstractExperimentHandle
 import os
 import copy
 from epymarl.src.run import run        # Your training routine in run.py
-from src.helper.moca_solver import run_solver  # Your MOCA solver module
+from src.contract.moca_solver import run_solver  # Your MOCA solver module
 
 class MOCAExperimentHandle(AbstractExperimentHandle):
     def __init__(self, config_dict_list):
@@ -37,7 +37,7 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
         """
         print("MOCA experiment finished. Cleaning up...")
 
-    def run_exp(self):
+    def run_exp(self, _run, _log):
         """
         Main execution loop for running the MOCA experiment.
         This method parses the experiment parameters, runs the training stage,
@@ -52,7 +52,7 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
         print("Main Experiment started for:", self.experiment_name)
 
         # Run training stage using the existing run() function (which internally uses MOCA Learner if configured)
-        exp_results = run(None, exp_params, None)  # 注意：这里传入 _run 和 _log 为 None，根据你的实际情况调整
+        exp_results = run(_run, exp_params, _log)
 
         # If solver is enabled, run the solver stage to determine the optimal contract.
         if config_dict.get("solver", False) and not config_dict.get("separate", False):

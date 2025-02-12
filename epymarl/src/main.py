@@ -51,7 +51,7 @@ def my_main(_run, _config, _log):
     # Use the MOCAExperimentHandle to schedule the experiment
     from src.handles.moca_experiment_handle import MOCAExperimentHandle
     handle = MOCAExperimentHandle(config_dict_list)
-    exp_results = handle.run_exp()
+    exp_results = handle.run_exp(_run, _log)
 
     return exp_results
 

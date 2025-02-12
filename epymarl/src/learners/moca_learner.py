@@ -14,8 +14,8 @@ from components.episode_buffer import EpisodeBatch
 from components.standarize_stream import RunningMeanStd
 from modules.critics import REGISTRY as critic_resigtry
 
-# Import the Contract class from src.helper.contract
-from src.helper.contract import GeneralContract
+# Import the Contract class from src.contract.contract
+from src.contract.contract import GeneralContract
 
 
 # Define a default transfer function in case none is provided
