@@ -40,8 +40,21 @@ def my_main(_run, _config, _log):
     th.manual_seed(config["seed"])
     config["env_args"]["seed"] = config["seed"]
 
-    # run the framework
-    run(_run, config, _log)
+    # Load configuration list for experiments
+    # If the config contains an "experiment_list_path", load the list from file; otherwise, use a single config.
+    if config.get("experiment_list_path", None) is not None:
+        with open(config["experiment_list_path"], "r") as f:
+            config_dict_list = yaml.safe_load(f)
+    else:
+        config_dict_list = [config]
+
+    # Use the MOCAExperimentHandle to schedule the experiment
+    from src.handles.moca_experiment_handle import MOCAExperimentHandle
+    handle = MOCAExperimentHandle(config_dict_list)
+    exp_results = handle.run_exp()
+
+    return exp_results
+
 
 
 def _get_config(params, arg_name, subfolder):

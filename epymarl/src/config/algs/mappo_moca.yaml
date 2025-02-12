@@ -1,0 +1,54 @@
+# --- MAPPO-meltingpot specific parameters ---
+
+action_selector: "soft_policies"
+mask_before_softmax: True
+
+runner: "parallel"
+
+buffer_size: 32
+batch_size_run: 16
+batch_size: 16
+
+# update the target network every {} training steps
+target_update_interval_or_tau: 0.01
+
+lr: 0.0001 # 0.0003
+hidden_dim: 128
+
+obs_agent_id: True
+obs_last_action: False
+obs_individual_obs: False
+
+agent_output_type: "pi_logits"
+learner: "ppo_learner"
+entropy_coef: 0.001
+use_rnn: True
+standardise_returns: False
+standardise_rewards: True
+q_nstep: 5 # 1 corresponds to normal r + gammaV
+critic_type: "cv_critic"
+epochs: 10
+eps_clip: 0.2
+name: "mappo"
+
+mappocheckpoint_path: "/media/kiyoaki/Ventoy/projects/SD_MARL/results/models/mappo_seed145018278_coins_2025-01-21_17-11"
+load_step: 20001600
+
+evaluate: True
+render: True
+#evaluate: False
+#render: False
+
+# --- MOCA specific parameters ---
+moca: True                      # Flag to indicate MOCA is used
+num_contract_candidates: 5      # Number of candidate contracts to sample
+chosen_contract: 0.0            # Default contract value (will be updated during training)
+contract_coef: 0.1              # Coefficient to modulate reward based on the contract
+solver: True                 # If True, perform a second-stage negotiation training
+store_path: "moca_mappo"  # Path to store cache models checkpoints for second-stage training
+
+use_tensorboard: True
+save_model: True
+
+t_max: 10000000
+save_model_interval: 10000000
