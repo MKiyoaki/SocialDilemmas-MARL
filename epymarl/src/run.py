@@ -18,6 +18,9 @@ from utils.general_reward_support import test_alg_config_supports_reward
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
 
+"""
+run.py
+"""
 
 def run(_run, _config, _log):
     # check args sanity
@@ -83,6 +86,12 @@ def run(_run, _config, _log):
             print("Thread joined")
 
     print("Exiting script")
+
+    exp_result_direc = os.path.join(
+        dirname(dirname(abspath(__file__))), "../results", "models"
+    )
+    weight_directories = os.path.join(exp_result_direc, args.unique_token)
+    return {"weight_directories": weight_directories, "logger": logger}
 
     # Making sure framework really exits
     # os._exit(os.EX_OK)

@@ -53,6 +53,7 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
 
         # Run training stage using the existing run() function (which internally uses MOCA Learner if configured)
         exp_results = run(_run, exp_params, _log)
+        print(f"DEBUG: exp_results = {exp_results}")
 
         # If solver is enabled, run the solver stage to determine the optimal contract.
         if config_dict.get("solver", False) and not config_dict.get("separate", False):

@@ -1,3 +1,4 @@
+from .moca_learner import MOCALearner
 from .q_learner import QLearner
 from .coma_learner import COMALearner
 from .qtran_learner import QLearner as QTranLearner
@@ -15,5 +16,6 @@ REGISTRY["qtran_learner"] = QTranLearner
 REGISTRY["actor_critic_learner"] = ActorCriticLearner
 REGISTRY["maddpg_learner"] = MADDPGLearner
 REGISTRY["ppo_learner"] = PPOLearner
+REGISTRY["moca_learner"] = MOCALearner
 REGISTRY["pac_learner"] = PACActorCriticLearner
 REGISTRY["pac_dcg_learner"] = PACDCGLearner

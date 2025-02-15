@@ -27,7 +27,7 @@ def default_transfer_function(obs, acts, rews, params, infos=None):
     return rews * (1 + params)
 
 
-class MOCALEarner:
+class MOCALearner:
     def __init__(self, mac, scheme, logger, args):
         """
         Initialize the MOCA Learner.

@@ -91,7 +91,6 @@ class MeltingPotGymWrapper(Env):
 
 def register_meltingpot():
     substrates = [
-        "prisoners_dilemma_in_the_matrix__arena",
         "prisoners_dilemma_in_the_matrix__repeated",
         "clean_up",
         "coins",
