@@ -1,3 +1,9 @@
+"""
+run.py
+
+
+"""
+
 import datetime
 import os
 from os.path import dirname, abspath
@@ -18,9 +24,6 @@ from utils.general_reward_support import test_alg_config_supports_reward
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
 
-"""
-run.py
-"""
 
 def run(_run, _config, _log):
     # check args sanity
@@ -40,8 +43,6 @@ def run(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-
     try:
         map_name = _config["env_args"]["map_name"]
     except:
@@ -69,32 +70,31 @@ def run(_run, _config, _log):
     # sacred is on by default
     logger.setup_sacred(_run)
 
-    # Run and train
+    # Run and train (online training phase)
     run_sequential(args=args, logger=logger)
 
     # Finish logging
     logger.finish()
 
     # Clean up after finishing
-    print("Exiting Main")
-
-    print("Stopping all threads")
+    logger.console_logger.info("Exiting Main")
+    logger.console_logger.info("Stopping all threads")
     for t in threading.enumerate():
         if t.name != "MainThread":
-            print("Thread {} is alive! Is daemon: {}".format(t.name, t.daemon))
+            logger.console_logger.info("Thread {} is alive! Is daemon: {}".format(t.name, t.daemon))
             t.join(timeout=1)
-            print("Thread joined")
+            logger.console_logger.info("Thread joined")
+    logger.console_logger.info("Exiting script")
 
-    print("Exiting script")
-
-    exp_result_direc = os.path.join(
-        dirname(dirname(abspath(__file__))), "../results", "models"
-    )
-    weight_directories = os.path.join(exp_result_direc, args.unique_token)
+    # If a frozen checkpoint exists, use it as weight_directories, otherwise use the default model directory
+    if hasattr(args, "frozen_checkpoint"):
+        weight_directories = args.frozen_checkpoint
+    else:
+        exp_result_direc = os.path.join(
+            dirname(dirname(abspath(__file__))), "../results", "models"
+        )
+        weight_directories = os.path.join(exp_result_direc, args.unique_token)
     return {"weight_directories": weight_directories, "logger": logger}
-
-    # Making sure framework really exits
-    # os._exit(os.EX_OK)
 
 
 def evaluate_sequential(args, runner):
@@ -167,7 +167,7 @@ def run_sequential(args, logger):
 
         if not os.path.isdir(args.checkpoint_path):
             logger.console_logger.info(
-                "Checkpoint directiory {} doesn't exist".format(args.checkpoint_path)
+                "Checkpoint directory {} doesn't exist".format(args.checkpoint_path)
             )
             return
 
@@ -199,7 +199,7 @@ def run_sequential(args, logger):
             logger.console_logger.info("Finished Evaluation")
             return
 
-    # start training
+    # start training (online training phase)
     episode = 0
     last_test_T = -args.test_interval - 1
     last_log_T = 0
@@ -253,12 +253,8 @@ def run_sequential(args, logger):
             save_path = os.path.join(
                 args.local_results_path, "models", args.unique_token, str(runner.t_env)
             )
-            # "results/models/{}".format(unique_token)
             os.makedirs(save_path, exist_ok=True)
             logger.console_logger.info("Saving models to {}".format(save_path))
-
-            # learner should handle saving/loading -- delegate actor save/load to mac,
-            # use appropriate filenames to do critics, optimizer states
             learner.save_models(save_path)
 
             if args.use_wandb and args.wandb_save_model:
@@ -278,13 +274,28 @@ def run_sequential(args, logger):
             logger.print_recent_stats()
             last_log_T = runner.t_env
 
+        # If in MOCA mode and solver is enabled, freeze the policy and exit training when solver_timestep is reached
+        if args.moca and args.solver and runner.t_env >= args.solver_timestep:
+            logger.console_logger.info(
+                "Reached solver_timestep: {}. Freezing policy and stopping online training.".format(args.solver_timestep)
+            )
+            if args.save_model:
+                # Use the store_path specified in configuration for checkpoint storage
+                checkpoint_dir = os.path.join(
+                    args.local_results_path, args.store_path, args.unique_token, str(runner.t_env)
+                )
+                os.makedirs(checkpoint_dir, exist_ok=True)
+                logger.console_logger.info("Saving frozen checkpoint models to {}".format(checkpoint_dir))
+                learner.save_models(checkpoint_dir)
+                args.frozen_checkpoint = checkpoint_dir
+            break
+
     runner.close_env()
     logger.console_logger.info("Finished Training")
 
 
 def args_sanity_check(config, _log):
     # set CUDA flags
-    # config["use_cuda"] = True # Use cuda whenever possible!
     if config["use_cuda"] and not th.cuda.is_available():
         config["use_cuda"] = False
         _log.warning(
