@@ -47,6 +47,7 @@ contract_coef: 0.1              # Coefficient to modulate reward based on the co
 solver: True                    # If True, perform a second-stage negotiation training
 solver_timestep: 10000          # Execute solver to optimize contract after fixed time steps
 store_path: "results/moca_mappo"        # Path to store cache models checkpoints for second-stage training
+transfer_function: "default_transfer_function"
 
 # --- logging options
 use_tensorboard: True

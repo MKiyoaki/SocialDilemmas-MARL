@@ -1,11 +1,3 @@
-"""
-moca_solver.py
-
-This module implements the MOCA solver that uses a frozen policy (obtained from training)
-to evaluate and determine the optimal contract parameter. It performs multiple rollouts
-with different contract values and selects the contract with the best performance.
-"""
-
 import time
 import copy
 import torch as th
@@ -13,6 +5,7 @@ import numpy as np
 
 from src.utils.config_utils import get_solver_config_from_params
 from src.utils.model_utils import load_frozen_policy
+from src.contract.contract import GeneralContract, default_transfer_function
 
 
 def run_solver(params_dict, checkpoint_paths, logger):
@@ -22,6 +15,13 @@ def run_solver(params_dict, checkpoint_paths, logger):
 
     # Load the frozen policy from the checkpoint using the solver configuration and environment info
     frozen_policy = load_frozen_policy(solver_config, checkpoint_paths, env_info)
+
+    contract_instance = GeneralContract(
+        num_agents=env_info["n_agents"],
+        contract_type="general",
+        params_range=(0.0, 1.0),
+        transfer_function=default_transfer_function
+    )
 
     # Generate candidate contract parameters (linearly sampled between 0 and 1)
     num_candidates = params_dict.get('solver_samples', 10)
@@ -44,7 +44,8 @@ def run_solver(params_dict, checkpoint_paths, logger):
                 action = frozen_policy.compute_action(obs)
                 obs, reward, terminated, truncated, info = env_copy.step(action)
                 done = terminated or truncated
-                ep_reward += reward
+                adjusted_reward = contract_instance.compute_transfer(obs, action, reward, contract, info)
+                ep_reward += adjusted_reward
             total_reward += ep_reward
         avg_reward = total_reward / num_rollouts
         logger.log_stat("solver_contract_reward", avg_reward, 0)
@@ -57,5 +58,4 @@ def run_solver(params_dict, checkpoint_paths, logger):
     print("Corresponding average rewards:", best_reward)
     print("Optimal contract selected:", best_contract)
 
-    time.sleep(50)  # wait for logger to finish writing
     return best_contract
