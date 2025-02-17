@@ -18,6 +18,9 @@ from utils.general_reward_support import test_alg_config_supports_reward
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
 
+# 新增：导入 MOCA 求解器
+from src.contract.moca_solver import run_solver
+
 
 def run(_run, _config, _log):
     # check args sanity
@@ -37,8 +40,6 @@ def run(_run, _config, _log):
     _log.info("\n\n" + experiment_params + "\n")
 
     # configure tensorboard logger
-    # unique_token = "{}__{}".format(args.name, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-
     try:
         map_name = _config["env_args"]["map_name"]
     except:
@@ -83,8 +84,6 @@ def run(_run, _config, _log):
             print("Thread joined")
 
     print("Exiting script")
-
-    # Making sure framework really exits
     # os._exit(os.EX_OK)
 
 
@@ -120,7 +119,6 @@ def run_sequential(args, logger):
         },
         "terminated": {"vshape": (1,), "dtype": th.uint8},
     }
-    # For individual rewards in gymmai reward is of shape (1, n_agents)
     if args.common_reward:
         scheme["reward"] = {"vshape": (1,)}
     else:
@@ -162,22 +160,17 @@ def run_sequential(args, logger):
             )
             return
 
-        # Go through all files in args.checkpoint_path
         for name in os.listdir(args.checkpoint_path):
             full_name = os.path.join(args.checkpoint_path, name)
-            # Check if they are dirs the names of which are numbers
             if os.path.isdir(full_name) and name.isdigit():
                 timesteps.append(int(name))
 
         if args.load_step == 0:
-            # choose the max timestep
             timestep_to_load = max(timesteps)
         else:
-            # choose the timestep closest to load_step
             timestep_to_load = min(timesteps, key=lambda x: abs(x - args.load_step))
 
         model_path = os.path.join(args.checkpoint_path, str(timestep_to_load))
-
         logger.console_logger.info("Loading model from {}".format(model_path))
         learner.load_models(model_path)
         runner.t_env = timestep_to_load
@@ -195,6 +188,8 @@ def run_sequential(args, logger):
     last_test_T = -args.test_interval - 1
     last_log_T = 0
     model_save_time = 0
+    # 新增：初始化上次求解器调用的时间
+    last_solver_time = 0
 
     start_time = time.time()
     last_time = start_time
@@ -208,8 +203,6 @@ def run_sequential(args, logger):
 
         if buffer.can_sample(args.batch_size):
             episode_sample = buffer.sample(args.batch_size)
-
-            # Truncate batch to only filled timesteps
             max_ep_t = episode_sample.max_t_filled()
             episode_sample = episode_sample[:, :max_ep_t]
 
@@ -217,6 +210,21 @@ def run_sequential(args, logger):
                 episode_sample.to(args.device)
 
             learner.train(episode_sample, runner.t_env, episode)
+
+        # 插入周期性求解：当启用 moca 且 solver 标志为 True 时，每隔 solver_timestep 执行一次冻结求解
+        if args.moca and args.solver and (runner.t_env - last_solver_time >= args.solver_timestep):
+            last_solver_time = runner.t_env
+            # 保存当前策略作为求解器输入的 checkpoint
+            solver_save_path = os.path.join(args.store_path, str(runner.t_env))
+            os.makedirs(solver_save_path, exist_ok=True)
+            logger.console_logger.info("Saving solver checkpoint models to {}".format(solver_save_path))
+            learner.save_models(solver_save_path)
+
+            # 调用求解器：利用冻结的策略对候选契约进行评估，返回最优契约
+            best_contract = run_solver(args.__dict__, [solver_save_path], logger)
+            logger.console_logger.info("Updated contract from {} to {}".format(args.chosen_contract, best_contract))
+            args.chosen_contract = best_contract
+            # 注意：后续训练中，moca_learner 应该依据 args.chosen_contract 进行 reward 的契约调整
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
@@ -231,7 +239,6 @@ def run_sequential(args, logger):
                 )
             )
             last_time = time.time()
-
             last_test_T = runner.t_env
             for _ in range(n_test_runs):
                 runner.run(test_mode=True)
@@ -244,12 +251,8 @@ def run_sequential(args, logger):
             save_path = os.path.join(
                 args.local_results_path, "models", args.unique_token, str(runner.t_env)
             )
-            # "results/models/{}".format(unique_token)
             os.makedirs(save_path, exist_ok=True)
             logger.console_logger.info("Saving models to {}".format(save_path))
-
-            # learner should handle saving/loading -- delegate actor save/load to mac,
-            # use appropriate filenames to do critics, optimizer states
             learner.save_models(save_path)
 
             if args.use_wandb and args.wandb_save_model:
@@ -274,8 +277,6 @@ def run_sequential(args, logger):
 
 
 def args_sanity_check(config, _log):
-    # set CUDA flags
-    # config["use_cuda"] = True # Use cuda whenever possible!
     if config["use_cuda"] and not th.cuda.is_available():
         config["use_cuda"] = False
         _log.warning(

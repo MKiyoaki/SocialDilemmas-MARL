@@ -1,15 +1,3 @@
-"""
-moca_experiment_handle.py
-
-This module implements the MOCAExperimentHandle class, a concrete experiment handler
-for running MOCA-based MARL experiments without Ray. It orchestrates the experiment in two stages:
-1. Training stage: running the training routine (via run() from run.py) that uses the MOCA learner.
-2. Solver stage: after training, invoking the MOCA solver to determine the optimal contract.
-
-All experiment parameters are parsed from the configuration dictionaries.
-"""
-
-# TODO: fix the error for round and round contract solving task
 import os
 import copy
 from epymarl.src.run import run
@@ -19,7 +7,6 @@ from src.handles.handles import AbstractExperimentHandle
 
 class MOCAExperimentHandle(AbstractExperimentHandle):
     def __init__(self, config_dict_list):
-        super().__init__(config_dict_list)
         self.config_dict_list = config_dict_list
 
     def hook_at_start(self):
@@ -37,7 +24,8 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
 
         exp_results = run(_run, exp_params, _log)
 
-        if config_dict.get("solver", False) and not config_dict.get("separate", False):
+        # 仅在非 MOCA 模式下，在训练结束后调用求解器（原有逻辑）
+        if (not exp_params.get("moca", False)) and exp_params.get("solver", False) and not exp_params.get("separate", False):
             solver_params = copy.deepcopy(exp_params)
             run_solver(solver_params, [exp_results["weight_directories"]], exp_results["logger"])
 
