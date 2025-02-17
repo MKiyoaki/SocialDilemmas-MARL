@@ -41,7 +41,7 @@ render: False
 
 # --- MOCA specific parameters ---
 moca: True                      # Flag to indicate MOCA is used
-num_contract_candidates: 2      # Number of candidate contracts to sample
+num_contract_candidates: 10     # Number of candidate contracts to sample
 chosen_contract: 0.0            # Default contract value (will be updated during training)
 contract_coef: 0.1              # Coefficient to modulate reward based on the contract
 solver: True                    # If True, perform a second-stage negotiation training

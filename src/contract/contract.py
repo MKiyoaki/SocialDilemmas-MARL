@@ -34,14 +34,14 @@ class GeneralContract(Contract):
         Compute reward transferring by the function transfer_function
 
         Args:
-            obs: 观察数据
-            acts: 动作数据
-            rews: 原始奖励数据（可以是 numpy 数组或其他数据类型）
-            params: 契约参数（假定为数值型，或与 rews 可直接计算）
-            infos: 可选的额外信息
+            obs: Observation information
+            acts: Action information
+            rews: Original reward information
+            params: Parameter for the contract
+            infos: Extra infos
 
         Returns:
-            调整后的奖励数据
+            Reward value after adjusting function is applied.
         """
         return self.transfer_function(obs, acts, rews, params, infos)
 
@@ -51,13 +51,13 @@ def default_transfer_function(obs, acts, rews, params, infos=None):
     Default reward transferring function：Scaling the reward by multiplying with (1 + params).
 
     Args:
-        obs: 观察数据
-        acts: 动作数据
-        rews: 原始奖励数据（可以是 numpy 数组或其他数据类型）
-        params: 契约参数（假定为数值型，或与 rews 可直接计算）
-        infos: 可选的额外信息
+        obs: Observation information
+        acts: Action information
+        rews: Original reward information
+        params: Parameter for the contract
+        infos: Extra infos
 
     Returns:
-        调整后的奖励数据
+        Reward value after adjusting function is applied.
     """
     return rews * (1 + params)

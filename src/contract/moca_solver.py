@@ -8,6 +8,8 @@ from src.utils.model_utils import load_frozen_policy
 from src.contract.contract import GeneralContract, default_transfer_function
 
 
+# TODO: Fix the bug that the contract is not applied
+
 def run_solver(params_dict, checkpoint_paths, logger):
     # Obtain solver configuration and environment instance using the provided parameters and checkpoint paths
     solver_config, env_copy = get_solver_config_from_params(params_dict, checkpoint_paths)
