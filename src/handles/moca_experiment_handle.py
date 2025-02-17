@@ -9,6 +9,7 @@ for running MOCA-based MARL experiments without Ray. It orchestrates the experim
 All experiment parameters are parsed from the configuration dictionaries.
 """
 
+# TODO: fix the error for round and round contract solving task
 import os
 import copy
 from epymarl.src.run import run
@@ -18,6 +19,7 @@ from src.handles.handles import AbstractExperimentHandle
 
 class MOCAExperimentHandle(AbstractExperimentHandle):
     def __init__(self, config_dict_list):
+        super().__init__(config_dict_list)
         self.config_dict_list = config_dict_list
 
     def hook_at_start(self):

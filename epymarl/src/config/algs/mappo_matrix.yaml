@@ -36,8 +36,8 @@ name: "mappo"
 
 #evaluate: True
 #render: True
-evaluate: True
-render: True
+evaluate: False
+render: False
 
 # --- logging options
 use_tensorboard: True
