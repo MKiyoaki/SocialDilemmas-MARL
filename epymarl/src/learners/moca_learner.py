@@ -8,6 +8,7 @@ allowing the learning process to be influenced by the contract.
 
 import copy
 import torch as th
+import numpy as np
 from torch.optim import Adam
 
 from components.episode_buffer import EpisodeBatch
@@ -82,6 +83,34 @@ class MOCALearner:
                                                  params_range=contract_params_range,
                                                  transfer_function=transfer_fn)
 
+    def sample_candidate_contracts(self, batch: EpisodeBatch):
+        """
+        Sample candidate contracts and evaluate them using the contract transfer function.
+        This method samples a set of candidate contract values from the predefined contract space,
+        computes the transferred rewards for each candidate on the provided batch,
+        and returns the candidate contracts along with their corresponding evaluation scores.
+        """
+        num_candidates = self.args.num_contract_candidates  # number of candidates to sample
+        # Get the contract space range from the contract instance
+        low_val = float(self.contract_instance.contract_space.low[0])
+        high_val = float(self.contract_instance.contract_space.high[0])
+        # Sample candidate contracts using a uniform grid
+        candidate_contracts = np.linspace(low_val, high_val, num_candidates)
+        candidate_scores = []
+        # Get observations from batch if available
+        if "obs" in batch.data_keys:
+            obs = batch["obs"]
+        else:
+            obs = None
+        # Evaluate each candidate contract on the batch data
+        for contract in candidate_contracts:
+            # Compute transferred rewards using the candidate contract value
+            transferred_rewards = self.contract_instance.compute_transfer(obs, batch["actions"], batch["reward"][:, :-1], contract)
+            # Compute an evaluation metric, e.g., total sum of transferred rewards
+            score = transferred_rewards.sum().item()
+            candidate_scores.append(score)
+        return candidate_contracts, candidate_scores
+
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         """
         Train the agent using the MOCA-enhanced PPO algorithm.
@@ -116,6 +145,12 @@ class MOCALearner:
             if self.contract_coef != 0.0:
                 rewards = rewards * (1 + self.contract_coef * self.contract)
         # --------------------------------------------------
+
+        # Candidate Contract Sampling during Stage 1.
+        # This implements the contract exploration step as described in the original paper.
+        candidate_contracts, candidate_scores = self.sample_candidate_contracts(batch)
+        self.logger.log_stat("candidate_contracts", candidate_contracts, t_env)
+        self.logger.log_stat("candidate_scores", candidate_scores, t_env)
 
         if self.args.standardise_rewards:
             self.rew_ms.update(rewards)

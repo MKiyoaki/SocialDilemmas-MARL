@@ -6,7 +6,8 @@ from src.handles.handles import AbstractExperimentHandle
 
 
 class MOCAExperimentHandle(AbstractExperimentHandle):
-    def __init__(self, config_dict_list):
+    def __init__(self, config_dict_list, **kwargs):
+        super().__init__(**kwargs)
         self.config_dict_list = config_dict_list
 
     def hook_at_start(self):
@@ -22,11 +23,16 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
         exp_params = self.argument_parsing(config_dict)
         print("Main Experiment started for:", self.experiment_name)
 
+        # Run the online training phase (stage 1) using the MOCA learner
         exp_results = run(_run, exp_params, _log)
 
-        # 仅在非 MOCA 模式下，在训练结束后调用求解器（原有逻辑）
-        if (not exp_params.get("moca", False)) and exp_params.get("solver", False) and not exp_params.get("separate", False):
+        # For MOCA, after training, call the solver (stage 2) to optimize the contract
+        # Check if MOCA and solver flags are enabled and if not running in separate mode
+        if exp_params.get("moca", False) and exp_params.get("solver", False) and not exp_params.get("separate", False):
             solver_params = copy.deepcopy(exp_params)
+            # Pass candidate contracts from stage 1 if available
+            if "candidate_contracts" in exp_results:
+                solver_params["candidate_contracts"] = exp_results["candidate_contracts"]
             run_solver(solver_params, [exp_results["weight_directories"]], exp_results["logger"])
 
         print("Main Experiment ended for:", self.experiment_name)
@@ -45,7 +51,8 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
             i += 1
         self.config_dict_list[index]["experiment_name"] = new_name
         if self.config_dict_list[index].get("parent_name"):
-            self.config_dict_list[index]["directory_name"] = self.config_dict_list[index]["parent_name"] + "/" + new_name
+            self.config_dict_list[index]["directory_name"] = self.config_dict_list[index][
+                                                                 "parent_name"] + "/" + new_name
         else:
             self.config_dict_list[index]["directory_name"] = new_name
         return new_name

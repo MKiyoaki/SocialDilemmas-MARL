@@ -8,16 +8,15 @@ from src.utils.model_utils import load_frozen_policy
 from src.contract.contract import GeneralContract, default_transfer_function
 
 
-# TODO: Fix the bug that the contract is not applied
-
 def run_solver(params_dict, checkpoint_paths, logger):
-    # Obtain solver configuration and environment instance using the provided parameters and checkpoint paths
+    # Obtain solver configuration and environment instance using provided parameters and checkpoint paths
     solver_config, env_copy = get_solver_config_from_params(params_dict, checkpoint_paths)
     env_info = env_copy.get_env_info()
 
     # Load the frozen policy from the checkpoint using the solver configuration and environment info
     frozen_policy = load_frozen_policy(solver_config, checkpoint_paths, env_info)
 
+    # Instantiate the contract instance with the default transfer function and contract space range
     contract_instance = GeneralContract(
         num_agents=env_info["n_agents"],
         contract_type="general",
@@ -25,9 +24,12 @@ def run_solver(params_dict, checkpoint_paths, logger):
         transfer_function=default_transfer_function
     )
 
-    # Generate candidate contract parameters (linearly sampled between 0 and 1)
-    num_candidates = params_dict.get('solver_samples', 10)
-    candidate_contracts = np.linspace(0, 1, num_candidates)
+    # Use candidate contracts from stage 1 if provided, otherwise generate uniformly sampled candidate contracts
+    if "candidate_contracts" in params_dict:
+        candidate_contracts = np.array(params_dict["candidate_contracts"])
+    else:
+        num_candidates = params_dict.get('solver_samples', 10)
+        candidate_contracts = np.linspace(0, 1, num_candidates)
 
     best_reward = -float('inf')
     best_contract = None
@@ -35,17 +37,18 @@ def run_solver(params_dict, checkpoint_paths, logger):
     # Evaluate each candidate contract by performing multiple rollouts
     num_rollouts = params_dict.get('solver_rollouts', 5)
     for contract in candidate_contracts:
-        env_copy.contract = contract
+        env_copy.contract = contract  # Set the environment's contract parameter
         total_reward = 0.0
         for _ in range(num_rollouts):
             obs = env_copy.reset()
             done = False
             ep_reward = 0.0
-            # Run one rollout until the episode ends
+            # Run a rollout until the episode ends
             while not done:
                 action = frozen_policy.compute_action(obs)
                 obs, reward, terminated, truncated, info = env_copy.step(action)
                 done = terminated or truncated
+                # Apply the contract transfer function to adjust the reward
                 adjusted_reward = contract_instance.compute_transfer(obs, action, reward, contract, info)
                 ep_reward += adjusted_reward
             total_reward += ep_reward

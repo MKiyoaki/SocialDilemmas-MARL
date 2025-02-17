@@ -8,16 +8,14 @@ It provides the basic interface for experiment scheduling and management.
 import json
 
 class AbstractExperimentHandle:
-    def __init__(self, config_path):
+    def __init__(self, **kwargs):
         """
         Initialize the experiment handle by loading the configuration dictionary list from the given file.
 
         Parameters:
             config_path (str): Path to the JSON configuration file.
         """
-        with open(config_path, 'r') as f:
-            self.config_dict_list = json.load(f)
-        self.experiment_name = self.config_dict_list[0].get('experiment_name', 'default_experiment')
+        pass
 
     def run_exp(self, **kwargs):
         """
