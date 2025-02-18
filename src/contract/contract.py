@@ -60,4 +60,28 @@ def default_transfer_function(obs, acts, rews, params, infos=None):
     Returns:
         Reward value after adjusting function is applied.
     """
-    return rews * (1 + params)
+    return rews * (1 + params) + params
+
+
+# In src/contract/contract.py
+
+def get_transfer_function(name: str):
+    """
+    Return the corresponding reward transfer function based on the given name.
+
+    Args:
+        name (str): The name of the transfer function.
+
+    Returns:
+        function: The corresponding transfer function.
+
+    Raises:
+        ValueError: If the name does not match any available function.
+    """
+    if name == "default_transfer_function":
+        return default_transfer_function
+    # 这里可以继续添加更多匹配项，例如：
+    # elif name == "another_transfer_function":
+    #     return another_transfer_function
+    else:
+        raise ValueError(f"Unknown transfer function: {name}")

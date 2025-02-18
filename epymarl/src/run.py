@@ -188,7 +188,6 @@ def run_sequential(args, logger):
     last_test_T = -args.test_interval - 1
     last_log_T = 0
     model_save_time = 0
-    # 新增：初始化上次求解器调用的时间
     last_solver_time = 0
 
     start_time = time.time()
@@ -211,20 +210,29 @@ def run_sequential(args, logger):
 
             learner.train(episode_sample, runner.t_env, episode)
 
-        # 插入周期性求解：当启用 moca 且 solver 标志为 True 时，每隔 solver_timestep 执行一次冻结求解
+        # Periodically trigger solver (offline negotiation) if MOCA and solver are enabled
         if args.moca and args.solver and (runner.t_env - last_solver_time >= args.solver_timestep):
             last_solver_time = runner.t_env
-            # 保存当前策略作为求解器输入的 checkpoint
             solver_save_path = os.path.join(args.store_path, str(runner.t_env))
             os.makedirs(solver_save_path, exist_ok=True)
             logger.console_logger.info("Saving solver checkpoint models to {}".format(solver_save_path))
             learner.save_models(solver_save_path)
 
-            # 调用求解器：利用冻结的策略对候选契约进行评估，返回最优契约
-            best_contract = run_solver(args.__dict__, [solver_save_path], logger)
-            logger.console_logger.info("Updated contract from {} to {}".format(args.chosen_contract, best_contract))
-            args.chosen_contract = best_contract
-            # 注意：后续训练中，moca_learner 应该依据 args.chosen_contract 进行 reward 的契约调整
+            # Retrieve candidate contracts from the learner
+            candidate_results = learner.get_results()  # Expecting a dict with "candidate_contracts" key
+
+            if "candidate_contracts" not in candidate_results:
+                logger.console_logger.info("No candidate contracts found from learner!")
+            else:
+                logger.console_logger.info("Candidate contracts from learner: {}".format(candidate_results["candidate_contracts"]))
+                # Pass candidate contracts and scores from learner into solver parameters
+                solver_params = args.__dict__.copy()
+                solver_params["candidate_contracts"] = candidate_results["candidate_contracts"]
+                solver_params["candidate_scores"] = candidate_results.get("candidate_scores", None)
+                best_contract = run_solver(solver_params, [solver_save_path], logger)
+                logger.console_logger.info("Updated contract from {} to {}".format(args.chosen_contract, best_contract))
+                args.chosen_contract = best_contract
+                # Note: The MOCA learner should use args.chosen_contract for subsequent reward adjustment
 
         # Execute test runs once in a while
         n_test_runs = max(1, args.test_nepisode // runner.batch_size)
@@ -248,22 +256,16 @@ def run_sequential(args, logger):
             or model_save_time == 0
         ):
             model_save_time = runner.t_env
-            save_path = os.path.join(
-                args.local_results_path, "models", args.unique_token, str(runner.t_env)
-            )
+            save_path = os.path.join(args.local_results_path, "models", args.unique_token, str(runner.t_env))
             os.makedirs(save_path, exist_ok=True)
             logger.console_logger.info("Saving models to {}".format(save_path))
             learner.save_models(save_path)
 
             if args.use_wandb and args.wandb_save_model:
-                wandb_save_dir = os.path.join(
-                    logger.wandb.dir, "models", args.unique_token, str(runner.t_env)
-                )
+                wandb_save_dir = os.path.join(logger.wandb.dir, "models", args.unique_token, str(runner.t_env))
                 os.makedirs(wandb_save_dir, exist_ok=True)
                 for f in os.listdir(save_path):
-                    shutil.copyfile(
-                        os.path.join(save_path, f), os.path.join(wandb_save_dir, f)
-                    )
+                    shutil.copyfile(os.path.join(save_path, f), os.path.join(wandb_save_dir, f))
 
         episode += args.batch_size_run
 

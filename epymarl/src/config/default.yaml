@@ -55,6 +55,7 @@ moca: False                     # Flag to indicate MOCA is used
 num_contract_candidates: 0      # Number of candidate contracts to sample
 chosen_contract: 0.0            # Default contract value (will be updated during training)
 contract_coef: 0.0              # Coefficient to modulate reward based on the contract
+contract_params_range: [0.0, 1.0]
 solver: False                   # If True, perform a second-stage negotiation training
 solver_timestep: 0              # Execute solver to optimize contract after fixed time steps
 store_path: "moca_mappo"        # Path to store cache models checkpoints for second-stage training

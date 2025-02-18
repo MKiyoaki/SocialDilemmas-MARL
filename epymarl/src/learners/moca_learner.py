@@ -15,17 +15,8 @@ from components.episode_buffer import EpisodeBatch
 from components.standarize_stream import RunningMeanStd
 from modules.critics import REGISTRY as critic_resigtry
 
-# Import the Contract class from src.contract.contract
-from src.contract.contract import GeneralContract
-
-
-# Define a default transfer function in case none is provided
-def default_transfer_function(obs, acts, rews, params, infos=None):
-    """
-    Default transfer function: scale rewards by (1 + params).
-    This is a simple example; in practice, more complex logic can be used.
-    """
-    return rews * (1 + params)
+# Import the Contract class and the get_transfer_function method from src.contract.contract
+from src.contract.contract import GeneralContract, get_transfer_function, default_transfer_function
 
 
 class MOCALearner:
@@ -76,12 +67,18 @@ class MOCALearner:
         # Use provided parameters from args if available; otherwise, use defaults.
         contract_type = getattr(args, 'contract_type', "general")
         contract_params_range = getattr(args, 'contract_params_range', (0.0, 1.0))
-        transfer_fn = getattr(args, 'transfer_function', default_transfer_function)
+        # Get transfer_function from args; if it's a string, use get_transfer_function to convert it
+        transfer_fn = getattr(args, 'transfer_function', "default_transfer_function")
+        if isinstance(transfer_fn, str):
+            transfer_fn = get_transfer_function(transfer_fn)
         # Instantiate a GeneralContract object
         self.contract_instance = GeneralContract(num_agents=self.n_agents,
                                                  contract_type=contract_type,
                                                  params_range=contract_params_range,
                                                  transfer_function=transfer_fn)
+        # Initialize storage for candidate contract sampling results
+        self.last_candidate_contracts = None
+        self.last_candidate_scores = None
 
     def sample_candidate_contracts(self, batch: EpisodeBatch):
         """
@@ -97,11 +94,8 @@ class MOCALearner:
         # Sample candidate contracts using a uniform grid
         candidate_contracts = np.linspace(low_val, high_val, num_candidates)
         candidate_scores = []
-        # Get observations from batch if available
-        if "obs" in batch.data_keys:
-            obs = batch["obs"]
-        else:
-            obs = None
+        # Get observations from the batch if available.
+        obs = batch["obs"]
         # Evaluate each candidate contract on the batch data
         for contract in candidate_contracts:
             # Compute transferred rewards using the candidate contract value
@@ -131,12 +125,8 @@ class MOCALearner:
         # --- MOCA Reward Adjustment using Contract ---
         # Instead of simple scaling, use the contract transfer function to adjust rewards.
         if self.contract_instance is not None:
-            # Get observations and actions from the batch if available.
-            # Here we assume that the batch contains "obs"; adjust as necessary.
-            if "obs" in batch.data_keys:
-                obs = batch["obs"]
-            else:
-                obs = None
+            # Get observations from the batch.
+            obs = batch["obs"]
             # Compute the transferred rewards using the contract's transfer function.
             # 'params' is set to the chosen contract value.
             rewards = self.contract_instance.compute_transfer(obs, batch["actions"], rewards, self.contract)
@@ -149,8 +139,11 @@ class MOCALearner:
         # Candidate Contract Sampling during Stage 1.
         # This implements the contract exploration step as described in the original paper.
         candidate_contracts, candidate_scores = self.sample_candidate_contracts(batch)
-        self.logger.log_stat("candidate_contracts", candidate_contracts, t_env)
-        self.logger.log_stat("candidate_scores", candidate_scores, t_env)
+        self.logger.console_logger.info("learner_candidate_contracts", candidate_contracts, t_env)
+        self.logger.console_logger.info("learner_candidate_scores", candidate_scores, t_env)
+        # Store the candidate results for later retrieval by the solver.
+        self.last_candidate_contracts = candidate_contracts
+        self.last_candidate_scores = candidate_scores
 
         if self.args.standardise_rewards:
             self.rew_ms.update(rewards)
@@ -232,6 +225,18 @@ class MOCALearner:
             self.logger.log_stat("agent_grad_norm", grad_norm.item(), t_env)
             self.logger.log_stat("pi_max", (pi.max(dim=-1)[0] * mask).sum().item() / mask.sum().item(), t_env)
             self.log_stats_t = t_env
+
+    def get_results(self):
+        """
+        Get candidate contract results for further solver operation.
+
+        Returns:
+            A dictionary containing the candidate contracts and their evaluation scores.
+        """
+        return {
+            "candidate_contracts": self.last_candidate_contracts,
+            "candidate_scores": self.last_candidate_scores
+        }
 
     def train_critic_sequential(self, critic, target_critic, batch, rewards, mask):
         """

@@ -9,14 +9,24 @@ from src.contract.contract import GeneralContract, default_transfer_function
 
 
 def run_solver(params_dict, checkpoint_paths, logger):
-    # Obtain solver configuration and environment instance using provided parameters and checkpoint paths
+    """
+    Obtain solver configuration and environment instance using provided parameters and checkpoint paths
+
+    Args:
+        params_dict (dict): Dictionary of solver parameters.
+        checkpoint_paths (list): List of paths to checkpoint files.
+        logger (Logger): Logger instance.
+    Returns:
+        Optimal contract.
+    """
     solver_config, env_copy = get_solver_config_from_params(params_dict, checkpoint_paths)
     env_info = env_copy.get_env_info()
 
     # Load the frozen policy from the checkpoint using the solver configuration and environment info
     frozen_policy = load_frozen_policy(solver_config, checkpoint_paths, env_info)
 
-    # Instantiate the contract instance with the default transfer function and contract space range
+    # Create a GeneralContract instance to be used for reward adjustment.
+    # This instance is required for computing adjusted_reward.
     contract_instance = GeneralContract(
         num_agents=env_info["n_agents"],
         contract_type="general",
@@ -24,12 +34,8 @@ def run_solver(params_dict, checkpoint_paths, logger):
         transfer_function=default_transfer_function
     )
 
-    # Use candidate contracts from stage 1 if provided, otherwise generate uniformly sampled candidate contracts
-    if "candidate_contracts" in params_dict:
-        candidate_contracts = np.array(params_dict["candidate_contracts"])
-    else:
-        num_candidates = params_dict.get('solver_samples', 10)
-        candidate_contracts = np.linspace(0, 1, num_candidates)
+    candidate_contracts = np.array(params_dict["candidate_contracts"], dtype=float)
+    logger.console_logger.info("Using candidate contracts: {}".format(candidate_contracts))
 
     best_reward = -float('inf')
     best_contract = None
@@ -48,7 +54,7 @@ def run_solver(params_dict, checkpoint_paths, logger):
                 action = frozen_policy.compute_action(obs)
                 obs, reward, terminated, truncated, info = env_copy.step(action)
                 done = terminated or truncated
-                # Apply the contract transfer function to adjust the reward
+                # Use the contract_instance to compute adjusted_reward
                 adjusted_reward = contract_instance.compute_transfer(obs, action, reward, contract, info)
                 ep_reward += adjusted_reward
             total_reward += ep_reward
@@ -58,7 +64,7 @@ def run_solver(params_dict, checkpoint_paths, logger):
             best_reward = avg_reward
             best_contract = contract
 
-    logger.log_stat("optimal_contract", best_contract, 0)
+    logger.log_stat("solver_optimal_contract", best_contract, 0)
     print("Solver evaluated candidate contracts:", candidate_contracts)
     print("Corresponding average rewards:", best_reward)
     print("Optimal contract selected:", best_contract)

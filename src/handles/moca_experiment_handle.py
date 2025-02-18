@@ -26,15 +26,6 @@ class MOCAExperimentHandle(AbstractExperimentHandle):
         # Run the online training phase (stage 1) using the MOCA learner
         exp_results = run(_run, exp_params, _log)
 
-        # For MOCA, after training, call the solver (stage 2) to optimize the contract
-        # Check if MOCA and solver flags are enabled and if not running in separate mode
-        if exp_params.get("moca", False) and exp_params.get("solver", False) and not exp_params.get("separate", False):
-            solver_params = copy.deepcopy(exp_params)
-            # Pass candidate contracts from stage 1 if available
-            if "candidate_contracts" in exp_results:
-                solver_params["candidate_contracts"] = exp_results["candidate_contracts"]
-            run_solver(solver_params, [exp_results["weight_directories"]], exp_results["logger"])
-
         print("Main Experiment ended for:", self.experiment_name)
         self.hook_at_end()
         return exp_results
