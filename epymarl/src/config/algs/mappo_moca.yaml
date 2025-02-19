@@ -47,7 +47,7 @@ chosen_contract: 0.0            # Default contract value (will be updated during
 contract_coef: 0.1              # Coefficient to modulate reward based on the contract
 contract_params_range: [0.0, 1.0]
 solver: True                    # If True, perform a second-stage negotiation training
-solver_timestep: 10000          # Execute solver to optimize contract after fixed time steps
+solver_timestep: 50000          # Execute solver to optimize contract after fixed time steps
 store_path: "results/moca_mappo"        # Path to store cache models checkpoints for second-stage training
 transfer_function: "default_transfer_function"
 

@@ -83,23 +83,42 @@ class MOCALearner:
     def sample_candidate_contracts(self, batch: EpisodeBatch):
         """
         Sample candidate contracts and evaluate them using the contract transfer function.
-        This method samples a set of candidate contract values from the predefined contract space,
-        computes the transferred rewards for each candidate on the provided batch,
+        This method samples candidate contract values from the predefined contract space.
+        It ensures that the previously determined optimal contract (self.args.chosen_contract)
+        is included in the candidate list, and the remaining candidates are sampled uniformly.
+        It then computes the transferred rewards for each candidate on the provided batch,
         and returns the candidate contracts along with their corresponding evaluation scores.
         """
-        num_candidates = self.args.num_contract_candidates  # number of candidates to sample
+        num_candidates = self.args.num_contract_candidates  # total number of candidates desired
         # Get the contract space range from the contract instance
         low_val = float(self.contract_instance.contract_space.low[0])
         high_val = float(self.contract_instance.contract_space.high[0])
-        # Sample candidate contracts using a uniform grid
-        candidate_contracts = np.linspace(low_val, high_val, num_candidates)
+
+        # Determine if an optimal contract already exists in args
+        optimal = self.args.chosen_contract
+        # If optimal contract is set and within range, include it; otherwise, ignore it.
+        candidate_list = []
+        if low_val <= optimal <= high_val:
+            candidate_list.append(optimal)
+
+        # Sample the remaining candidates uniformly from the contract space.
+        num_to_sample = num_candidates - len(candidate_list)
+        if num_to_sample > 0:
+            # Using uniform sampling; alternatively, one can use np.linspace as before.
+            other_candidates = np.linspace(low_val, high_val, num_to_sample, endpoint=True)
+            candidate_list.extend(other_candidates)
+
+        # Convert candidate_list to numpy array and sort them
+        candidate_contracts = np.sort(np.array(candidate_list, dtype=float))
+
         candidate_scores = []
         # Get observations from the batch if available.
         obs = batch["obs"]
         # Evaluate each candidate contract on the batch data
         for contract in candidate_contracts:
             # Compute transferred rewards using the candidate contract value
-            transferred_rewards = self.contract_instance.compute_transfer(obs, batch["actions"], batch["reward"][:, :-1], contract)
+            transferred_rewards = self.contract_instance.compute_transfer(obs, batch["actions"],
+                                                                          batch["reward"][:, :-1], contract)
             # Compute an evaluation metric, e.g., total sum of transferred rewards
             score = transferred_rewards.sum().item()
             candidate_scores.append(score)
@@ -352,8 +371,11 @@ class MOCALearner:
     def load_models(self, path):
         """Load model parameters from the given path."""
         self.mac.load_models(path)
-        self.critic.load_state_dict(th.load("{}/critic.th".format(path), map_location=lambda storage, loc: storage))
+        self.critic.load_state_dict(
+            th.load("{}/critic.th".format(path), map_location=lambda storage, loc: storage, weights_only=True))
         # Not saving target network separately; load critic to target.
         self.target_critic.load_state_dict(self.critic.state_dict())
-        self.agent_optimiser.load_state_dict(th.load("{}/agent_opt.th".format(path), map_location=lambda storage, loc: storage))
-        self.critic_optimiser.load_state_dict(th.load("{}/critic_opt.th".format(path), map_location=lambda storage, loc: storage))
+        self.agent_optimiser.load_state_dict(
+            th.load("{}/agent_opt.th".format(path), map_location=lambda storage, loc: storage, weights_only=True))
+        self.critic_optimiser.load_state_dict(
+            th.load("{}/critic_opt.th".format(path), map_location=lambda storage, loc: storage, weights_only=True))
