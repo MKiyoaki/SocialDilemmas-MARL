@@ -17,7 +17,7 @@ class GeneralContract(Contract):
     """
 
     """
-    def __init__(self, num_agents, contract_type, params_range, transfer_function):
+    def __init__(self,  num_agents, contract_type, params_range, transfer_function):
         """
         Args:
             num_agents (int): Number of the agents
@@ -28,6 +28,8 @@ class GeneralContract(Contract):
         super().__init__(gym.spaces.Box(shape=(1,), low=params_range[0], high=params_range[1]), np.array([0.0]), num_agents)
         self.contract_type = contract_type
         self.transfer_function = transfer_function
+        self.contract_space_low = params_range[0]
+        self.contract_space_high = params_range[1]
 
     def compute_transfer(self, obs, acts, rews, params, infos=None):
         """

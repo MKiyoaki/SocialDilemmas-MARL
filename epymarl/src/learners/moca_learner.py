@@ -1,11 +1,3 @@
-"""
-moca_learner.py
-
-This module implements the MOCALEarner, which extends the PPOLearner to incorporate contract augmentation.
-It modifies the reward signals based on a chosen contract parameter using a contract transfer function,
-allowing the learning process to be influenced by the contract.
-"""
-
 import copy
 import torch as th
 import numpy as np
@@ -82,44 +74,28 @@ class MOCALearner:
 
     def sample_candidate_contracts(self, batch: EpisodeBatch):
         """
-        Sample candidate contracts and evaluate them using the contract transfer function.
-        This method samples candidate contract values from the predefined contract space.
-        It ensures that the previously determined optimal contract (self.args.chosen_contract)
-        is included in the candidate list, and the remaining candidates are sampled uniformly.
-        It then computes the transferred rewards for each candidate on the provided batch,
-        and returns the candidate contracts along with their corresponding evaluation scores.
+        Sample candidate contracts using the contract space defined in contract_instance.
         """
-        num_candidates = self.args.num_contract_candidates  # total number of candidates desired
-        # Get the contract space range from the contract instance
-        low_val = float(self.contract_instance.contract_space.low[0])
-        high_val = float(self.contract_instance.contract_space.high[0])
+        num_candidates = self.args.num_contract_candidates
+        low_val = float(self.contract_instance.contract_space_low)
+        high_val = float(self.contract_instance.contract_space_high)
 
-        # Determine if an optimal contract already exists in args
         optimal = self.args.chosen_contract
-        # If optimal contract is set and within range, include it; otherwise, ignore it.
         candidate_list = []
         if low_val <= optimal <= high_val:
             candidate_list.append(optimal)
 
-        # Sample the remaining candidates uniformly from the contract space.
         num_to_sample = num_candidates - len(candidate_list)
         if num_to_sample > 0:
-            # Using uniform sampling; alternatively, one can use np.linspace as before.
             other_candidates = np.linspace(low_val, high_val, num_to_sample, endpoint=True)
             candidate_list.extend(other_candidates)
 
-        # Convert candidate_list to numpy array and sort them
         candidate_contracts = np.sort(np.array(candidate_list, dtype=float))
-
         candidate_scores = []
-        # Get observations from the batch if available.
         obs = batch["obs"]
-        # Evaluate each candidate contract on the batch data
         for contract in candidate_contracts:
-            # Compute transferred rewards using the candidate contract value
-            transferred_rewards = self.contract_instance.compute_transfer(obs, batch["actions"],
-                                                                          batch["reward"][:, :-1], contract)
-            # Compute an evaluation metric, e.g., total sum of transferred rewards
+            transferred_rewards = self.contract_instance.compute_transfer(
+                obs, batch["actions"], batch["reward"][:, :-1], contract)
             score = transferred_rewards.sum().item()
             candidate_scores.append(score)
         return candidate_contracts, candidate_scores
@@ -146,9 +122,17 @@ class MOCALearner:
         if self.contract_instance is not None:
             # Get observations from the batch.
             obs = batch["obs"]
-            # Compute the transferred rewards using the contract's transfer function.
-            # 'params' is set to the chosen contract value.
-            rewards = self.contract_instance.compute_transfer(obs, batch["actions"], rewards, self.contract)
+            # If configuration indicates to use environment-provided contract parameter,
+            # extract it from the observation. Here we assume the contract parameter is appended
+            # as the second last element in the observation vector.
+            if getattr(self.args, 'use_env_contract', False):
+                # Extract contract parameters from observations (assume same for all agents)
+                # obs shape: [batch_size, seq_length, obs_dim]
+                current_contract = th.mean(obs[:, :, -2])
+            else:
+                current_contract = self.contract
+
+            rewards = self.contract_instance.compute_transfer(obs, batch["actions"], rewards, current_contract)
         else:
             # Fallback: if no contract instance, use simple reward scaling.
             if self.contract_coef != 0.0:
