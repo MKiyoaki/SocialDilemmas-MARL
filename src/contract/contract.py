@@ -1,5 +1,6 @@
 import gymnasium as gym
 import numpy as np
+import torch as th
 
 
 class Contract:
@@ -65,6 +66,63 @@ def default_transfer_function(obs, acts, rews, params, infos=None):
     return rews * (1 + params) + params
 
 
+def pd_transfer_function(obs, acts, rews, params, infos=None):
+    """
+    Reward transferring function for the Prisoners Dilemma in the Matrix.
+
+    Each agent's action: 0 means cooperate, 1 means defect.
+    The parameter 'params' represents the contract parameter (theta) for each agent.
+
+    If agent i defects while the other agent cooperates,
+    then agent i pays theta (negative transfer) and agent j receives theta (positive transfer).
+    Otherwise, no transfer occurs.
+
+    Args:
+        obs: Observation information.
+        acts: Action information. Can be a dict or a tensor.
+        rews: Original reward information.
+        params: Contract parameter for the transfer.
+        infos: Additional information (optional).
+
+    Returns:
+        A dict of reward transfers for each agent.
+    """
+    # If acts is a tensor, convert it into a dictionary with keys 'a0' and 'a1'
+    # TODO FIX this
+    print("DEBUG: " + acts)
+
+    if isinstance(acts, th.Tensor):
+        # Assume acts is of shape (num_agents,) or (1, num_agents); flatten it to a list
+        acts = acts.view(-1).tolist()
+        acts = {f"a{i}": act for i, act in enumerate(acts)}
+
+    transfers = {}
+    agents = list(acts.keys())
+    # Assume only two agents are present
+    if len(agents) != 2:
+        raise ValueError("Prisoners Dilemma Transfer function supports only 2 agents.")
+    a0, a1 = agents[0], agents[1]
+
+    # Initialize transfers
+    transfers[a0] = 0
+    transfers[a1] = 0
+
+    # If a0 defects (1) and a1 cooperates (0), a0 pays theta and a1 receives theta.
+    if acts[a0] == 1 and acts[a1] == 0:
+        transfers[a0] = -params[a0][0]
+        transfers[a1] = params[a0][0]
+    # If a0 cooperates (0) and a1 defects (1), a0 receives theta and a1 pays theta.
+    elif acts[a0] == 0 and acts[a1] == 1:
+        transfers[a0] = params[a1][0]
+        transfers[a1] = -params[a1][0]
+    # If both choose the same action, no transfer occurs.
+    else:
+        transfers[a0] = 0
+        transfers[a1] = 0
+
+    return transfers
+
+
 # In src/contract/contract.py
 
 def get_transfer_function(name: str):
@@ -82,8 +140,8 @@ def get_transfer_function(name: str):
     """
     if name == "default_transfer_function":
         return default_transfer_function
-    # 这里可以继续添加更多匹配项，例如：
-    # elif name == "another_transfer_function":
-    #     return another_transfer_function
+    elif name == "pd_transfer_function":
+        return pd_transfer_function
+    # elif ...
     else:
         raise ValueError(f"Unknown transfer function: {name}")
