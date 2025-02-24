@@ -49,11 +49,11 @@ contract_params_range: [0.0, 10.0]
 solver: True                    # If True, perform a second-stage negotiation training
 solver_timestep: 50000          # Execute solver to optimize contract after fixed time steps
 store_path: "results/moca_mappo"        # Path to store cache models checkpoints for second-stage training
-transfer_function: "pd_transfer_function"
+transfer_function: "default_transfer_function"
 
 # --- logging options
 use_tensorboard: True
 save_model: True
 
-t_max: 10000000
+t_max: 20000000
 save_model_interval: 5000000

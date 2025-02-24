@@ -51,79 +51,94 @@ class GeneralContract(Contract):
 
 def default_transfer_function(obs, acts, rews, params, infos=None):
     """
-    Default reward transferring function：Scaling the reward by multiplying with (1 + params).
+    Default reward transferring function: scales the reward by multiplying with (1 + theta)
+    and adds theta for each agent.
+
+    This function is designed for multiple agents. It assumes that 'rews' is a tensor of shape [B, T, n_agents].
+    If 'params' is a dict, it uses params["a{i}"][0] as the theta for agent i; otherwise, it applies the same theta to all agents.
 
     Args:
-        obs: Observation information
-        acts: Action information
-        rews: Original reward information
-        params: Parameter for the contract
-        infos: Extra infos
+        obs: Observation information.
+        acts: Action information.
+        rews: Original reward information, as a tensor of shape [B, T, n_agents] (or [B, T, 1] for common reward).
+        params: Contract parameter for the transfer; either a float or a dict mapping agent keys to a 1-element list.
+        infos: Additional information (optional).
 
     Returns:
-        Reward value after adjusting function is applied.
+        A tensor of adjusted reward transfers with shape [B, T, n_agents].
     """
-    return rews * (1 + params) + params
-
+    # If rews is a common reward tensor with shape [B, T, 1], expand it to [B, T, n_agents]
+    if rews.size(-1) == 1:
+        n_agents = 1  # Actually, common reward is shared; here we keep it as is.
+        # For common reward, we apply the transformation and then (if needed) broadcast.
+        adjusted = rews * (1 + params) + params if not isinstance(params, dict) else rews * (1 + params["a0"][0]) + params["a0"][0]
+        return adjusted
+    else:
+        B, T, n_agents = rews.shape
+        adjusted_list = []
+        for i in range(n_agents):
+            if isinstance(params, dict):
+                theta = params.get(f"a{i}", [0.0])[0]
+            else:
+                theta = params
+            # Apply the transformation element-wise
+            adjusted = rews[..., i] * (1 + theta) + theta
+            adjusted_list.append(adjusted)
+        # Stack along the last dimension to get shape [B, T, n_agents]
+        return th.stack(adjusted_list, dim=-1)
 
 def pd_transfer_function(obs, acts, rews, params, infos=None):
     """
     Reward transferring function for the Prisoners Dilemma in the Matrix.
 
     Each agent's action: 0 means cooperate, 1 means defect.
-    The parameter 'params' represents the contract parameter (theta) for each agent.
+    The parameter 'params' represents the contract parameter (theta) for the transfer.
+    It can be either a float (in which case the same theta is used for both agents)
+    or a dict with keys 'a0' and 'a1'.
 
-    If agent i defects while the other agent cooperates,
-    then agent i pays theta (negative transfer) and agent j receives theta (positive transfer).
-    Otherwise, no transfer occurs.
+    If agent0 defects while agent1 cooperates, then agent0 pays theta (negative transfer)
+    and agent1 receives theta (positive transfer). Similarly, if agent0 cooperates and agent1 defects,
+    then agent0 receives theta and agent1 pays theta. Otherwise, no transfer occurs.
 
     Args:
         obs: Observation information.
-        acts: Action information. Can be a dict or a tensor.
-        rews: Original reward information.
-        params: Contract parameter for the transfer.
+        acts: Action information. Expected shape is [B, T, 2, 1].
+        rews: Original reward information as a tensor.
+        params: Contract parameter for the transfer (float or dict).
         infos: Additional information (optional).
 
     Returns:
-        A dict of reward transfers for each agent.
+        A tensor of reward transfers with shape [B, T, 2].
     """
-    # If acts is a tensor, convert it into a dictionary with keys 'a0' and 'a1'
-    # TODO FIX this
-    print("DEBUG: " + acts)
+    # Squeeze the last dimension to get shape [B, T, 2]
+    acts = acts.squeeze(-1)
 
-    if isinstance(acts, th.Tensor):
-        # Assume acts is of shape (num_agents,) or (1, num_agents); flatten it to a list
-        acts = acts.view(-1).tolist()
-        acts = {f"a{i}": act for i, act in enumerate(acts)}
+    # Extract actions for agent0 and agent1: both have shape [B, T]
+    a0 = acts[..., 0]
+    a1 = acts[..., 1]
 
-    transfers = {}
-    agents = list(acts.keys())
-    # Assume only two agents are present
-    if len(agents) != 2:
-        raise ValueError("Prisoners Dilemma Transfer function supports only 2 agents.")
-    a0, a1 = agents[0], agents[1]
-
-    # Initialize transfers
-    transfers[a0] = 0
-    transfers[a1] = 0
-
-    # If a0 defects (1) and a1 cooperates (0), a0 pays theta and a1 receives theta.
-    if acts[a0] == 1 and acts[a1] == 0:
-        transfers[a0] = -params[a0][0]
-        transfers[a1] = params[a0][0]
-    # If a0 cooperates (0) and a1 defects (1), a0 receives theta and a1 pays theta.
-    elif acts[a0] == 0 and acts[a1] == 1:
-        transfers[a0] = params[a1][0]
-        transfers[a1] = -params[a1][0]
-    # If both choose the same action, no transfer occurs.
+    # Determine theta values
+    if isinstance(params, dict):
+        theta0 = params["a0"][0] if "a0" in params else 0.0
+        theta1 = params["a1"][0] if "a1" in params else 0.0
     else:
-        transfers[a0] = 0
-        transfers[a1] = 0
+        theta0 = theta1 = params
 
+    # Create condition masks:
+    cond0 = (a0 == 1) & (a1 == 0)  # agent0 defects and agent1 cooperates
+    cond1 = (a0 == 0) & (a1 == 1)  # agent0 cooperates and agent1 defects
+
+    # Compute transfers for each agent
+    transfer_a0 = th.where(cond0, -theta0, th.zeros_like(a0))
+    transfer_a0 = th.where(cond1, theta1, transfer_a0)
+
+    transfer_a1 = th.where(cond0, theta0, th.zeros_like(a1))
+    transfer_a1 = th.where(cond1, -theta1, transfer_a1)
+
+    # Stack the transfers to form a tensor of shape [B, T, 2]
+    transfers = th.stack([transfer_a0, transfer_a1], dim=-1)
     return transfers
 
-
-# In src/contract/contract.py
 
 def get_transfer_function(name: str):
     """

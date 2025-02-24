@@ -91,14 +91,12 @@ class MOCALearner:
             candidate_list.extend(other_candidates)
 
         candidate_contracts = np.sort(np.array(candidate_list, dtype=float))
-        candidate_scores = []
         obs = batch["obs"]
         for contract in candidate_contracts:
             transferred_rewards = self.contract_instance.compute_transfer(
                 obs, batch["actions"], batch["reward"][:, :-1], contract)
-            score = transferred_rewards.sum().item()
-            candidate_scores.append(score)
-        return candidate_contracts, candidate_scores
+            # Use torch.as_tensor to safely convert each value to tensor and sum it.
+        return candidate_contracts
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         """
@@ -141,12 +139,10 @@ class MOCALearner:
 
         # Candidate Contract Sampling during Stage 1.
         # This implements the contract exploration step as described in the original paper.
-        candidate_contracts, candidate_scores = self.sample_candidate_contracts(batch)
+        candidate_contracts = self.sample_candidate_contracts(batch)
         self.logger.console_logger.info("learner_candidate_contracts", candidate_contracts, t_env)
-        self.logger.console_logger.info("learner_candidate_scores", candidate_scores, t_env)
         # Store the candidate results for later retrieval by the solver.
         self.last_candidate_contracts = candidate_contracts
-        self.last_candidate_scores = candidate_scores
 
         if self.args.standardise_rewards:
             self.rew_ms.update(rewards)
@@ -238,7 +234,6 @@ class MOCALearner:
         """
         return {
             "candidate_contracts": self.last_candidate_contracts,
-            "candidate_scores": self.last_candidate_scores
         }
 
     def train_critic_sequential(self, critic, target_critic, batch, rewards, mask):

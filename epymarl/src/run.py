@@ -228,7 +228,6 @@ def run_sequential(args, logger):
                 # Pass candidate contracts and scores from learner into solver parameters
                 solver_params = args.__dict__.copy()
                 solver_params["candidate_contracts"] = candidate_results["candidate_contracts"]
-                solver_params["candidate_scores"] = candidate_results.get("candidate_scores", None)
                 best_contract = run_solver(solver_params, [solver_save_path], logger)
                 logger.console_logger.info("Updated contract from {} to {}".format(args.chosen_contract, best_contract))
                 args.chosen_contract = best_contract
