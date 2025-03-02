@@ -13,8 +13,9 @@ batch_size: 128
 # update the target network every {} training steps
 target_update_interval_or_tau: 0.01
 
-lr: 0.00001
+lr: 0.0004
 hidden_dim: 128
+grad_norm_clip: 2
 
 obs_agent_id: True
 obs_last_action: False
@@ -44,5 +45,5 @@ render: False
 use_tensorboard: True
 save_model: True
 
-t_max: 20000000
+t_max: 50000000
 save_model_interval: 5000000
