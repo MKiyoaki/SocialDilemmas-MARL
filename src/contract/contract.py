@@ -110,34 +110,40 @@ def pd_transfer_function(obs, acts, rews, params, infos=None):
     Returns:
         A tensor of reward transfers with shape [B, T, 2].
     """
-    # Squeeze the last dimension to get shape [B, T, 2]
-    acts = acts.squeeze(-1)
+    # 1) Squeeze the last dim if needed => shape [B, T, 2]
+    if isinstance(acts, th.Tensor) and acts.dim() == 4:
+        # acts is [B, T, 2, 1], so remove the last dim
+        acts = acts.squeeze(-1)
 
-    # Extract actions for agent0 and agent1: both have shape [B, T]
+    # 2) Extract row player's action (a0) and column player's action (a1) => shape [B, T]
     a0 = acts[..., 0]
     a1 = acts[..., 1]
 
-    # Determine theta values
-    if isinstance(params, dict):
-        theta0 = params["a0"][0] if "a0" in params else 0.0
-        theta1 = params["a1"][0] if "a1" in params else 0.0
-    else:
-        theta0 = theta1 = params
+    # 3) Convert params to row_param, col_param
+    row_param = params.get("a0", [0.0])[0]
+    col_param = params.get("a1", [0.0])[0]
 
-    # Create condition masks:
-    cond0 = (a0 == 1) & (a1 == 0)  # agent0 defects and agent1 cooperates
-    cond1 = (a0 == 0) & (a1 == 1)  # agent0 cooperates and agent1 defects
+    # 4) Create masks for (rowDefect, colCoop) and (rowCoop, colDefect)
+    #    rowDefect, colCoop => a0=1, a1=0
+    cond0 = (a0 == 1) & (a1 == 0)
+    #    rowCoop, colDefect => a0=0, a1=1
+    cond1 = (a0 == 0) & (a1 == 1)
 
-    # Compute transfers for each agent
-    transfer_a0 = th.where(cond0, -theta0, th.zeros_like(a0))
-    transfer_a0 = th.where(cond1, theta1, transfer_a0)
+    # 5) Build shift for row player and column player
+    shift_row = th.where(cond0, -row_param, th.zeros_like(a0, dtype=rews.dtype))
+    shift_row = th.where(cond1, shift_row + col_param, shift_row)
 
-    transfer_a1 = th.where(cond0, theta0, th.zeros_like(a1))
-    transfer_a1 = th.where(cond1, -theta1, transfer_a1)
+    shift_col = th.where(cond0, row_param, th.zeros_like(a1, dtype=rews.dtype))
+    shift_col = th.where(cond1, shift_col - col_param, shift_col)
 
-    # Stack the transfers to form a tensor of shape [B, T, 2]
-    transfers = th.stack([transfer_a0, transfer_a1], dim=-1)
-    return transfers
+    # 6) Add these shifts to the original payoffs from TheMatrix
+    #    rews shape: [B, T, 2]
+    #    final shape: [B, T, 2]
+    row_final = rews[..., 0] + shift_row
+    col_final = rews[..., 1] + shift_col
+    final = th.stack([row_final, col_final], dim=-1)
+
+    return final
 
 
 def get_transfer_function(name: str):
