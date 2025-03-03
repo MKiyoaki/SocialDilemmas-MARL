@@ -87,64 +87,61 @@ def default_transfer_function(obs, acts, rews, params, infos=None):
         # Stack along the last dimension to get shape [B, T, n_agents]
         return th.stack(adjusted_list, dim=-1)
 
+
 def pd_transfer_function(obs, acts, rews, params, infos=None):
     """
-    Reward transferring function for the Prisoners Dilemma in the Matrix.
+    Transfer function for Prisoner's Dilemma environment that averages payoffs
+    between cooperators and defectors.
 
-    Each agent's action: 0 means cooperate, 1 means defect.
-    The parameter 'params' represents the contract parameter (theta) for the transfer.
-    It can be either a float (in which case the same theta is used for both agents)
-    or a dict with keys 'a0' and 'a1'.
-
-    If agent0 defects while agent1 cooperates, then agent0 pays theta (negative transfer)
-    and agent1 receives theta (positive transfer). Similarly, if agent0 cooperates and agent1 defects,
-    then agent0 receives theta and agent1 pays theta. Otherwise, no transfer occurs.
+    When agents choose different actions (one cooperates, one defects),
+    the transfer function ensures both receive the average of their original payoffs.
 
     Args:
-        obs: Observation information.
-        acts: Action information. Expected shape is [B, T, 2, 1].
-        rews: Original reward information as a tensor.
-        params: Contract parameter for the transfer (float or dict).
-        infos: Additional information (optional).
+        obs: Tensor of observations for each agent
+        acts: Tensor of actions for each agent (0 = cooperate, 1 = defect)
+        rews: Tensor of original rewards for each agent
+        params: Contract parameter controlling whether to apply the averaging
+        infos: Additional information (optional)
 
     Returns:
-        A tensor of reward transfers with shape [B, T, 2].
+        Tensor of reward transfers that implement payoff averaging
     """
-    # 1) Squeeze the last dim if needed => shape [B, T, 2]
-    if isinstance(acts, th.Tensor) and acts.dim() == 4:
-        # acts is [B, T, 2, 1], so remove the last dim
-        acts = acts.squeeze(-1)
+    # Convert inputs to tensors if they aren't already
+    if not isinstance(acts, th.Tensor):
+        acts = th.tensor(acts, dtype=th.float32)
+    if not isinstance(rews, th.Tensor):
+        rews = th.tensor(rews, dtype=th.float32)
 
-    # 2) Extract row player's action (a0) and column player's action (a1) => shape [B, T]
-    a0 = acts[..., 0]
-    a1 = acts[..., 1]
+    # Initialize transfer tensor
+    transfers = th.zeros_like(rews)
 
-    # 3) Convert params to row_param, col_param
-    row_param = params.get("a0", [0.0])[0]
-    col_param = params.get("a1", [0.0])[0]
+    # For 2-player Prisoner's Dilemma
+    if len(acts) == 2:
+        # Case 1: Player 0 cooperates and Player 1 defects
+        if acts[0] == 0 and acts[1] == 1:
+            # Calculate average reward
+            avg_reward = (rews[0] + rews[1]) / 2
+            # Calculate transfers needed to achieve average for both
+            transfers[0] = avg_reward - rews[0]  # Cooperator receives
+            transfers[1] = avg_reward - rews[1]  # Defector pays
 
-    # 4) Create masks for (rowDefect, colCoop) and (rowCoop, colDefect)
-    #    rowDefect, colCoop => a0=1, a1=0
-    cond0 = (a0 == 1) & (a1 == 0)
-    #    rowCoop, colDefect => a0=0, a1=1
-    cond1 = (a0 == 0) & (a1 == 1)
+        # Case 2: Player 1 cooperates and Player 0 defects
+        elif acts[0] == 1 and acts[1] == 0:
+            # Calculate average reward
+            avg_reward = (rews[0] + rews[1]) / 2
+            # Calculate transfers needed to achieve average for both
+            transfers[0] = avg_reward - rews[0]  # Defector pays
+            transfers[1] = avg_reward - rews[1]  # Cooperator receives
 
-    # 5) Build shift for row player and column player
-    shift_row = th.where(cond0, -row_param, th.zeros_like(a0, dtype=rews.dtype))
-    shift_row = th.where(cond1, shift_row + col_param, shift_row)
+        # Case 3: Both cooperate or both defect - no transfers
+        else:
+            transfers[0] = 0
+            transfers[1] = 0
 
-    shift_col = th.where(cond0, row_param, th.zeros_like(a1, dtype=rews.dtype))
-    shift_col = th.where(cond1, shift_col - col_param, shift_col)
+    # Verify zero-sum property
+    assert abs(th.sum(transfers).item()) < 1e-6, "Transfers must sum to zero"
 
-    # 6) Add these shifts to the original payoffs from TheMatrix
-    #    rews shape: [B, T, 2]
-    #    final shape: [B, T, 2]
-    row_final = rews[..., 0] + shift_row
-    col_final = rews[..., 1] + shift_col
-    final = th.stack([row_final, col_final], dim=-1)
-
-    return final
-
+    return transfers
 
 def get_transfer_function(name: str):
     """
