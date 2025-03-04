@@ -13,7 +13,7 @@ batch_size: 128
 # update the target network every {} training steps
 target_update_interval_or_tau: 0.01
 
-lr: 0.0004
+lr: 0.00006
 hidden_dim: 128
 grad_norm_clip: 2
 

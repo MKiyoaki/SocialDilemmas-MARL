@@ -13,8 +13,9 @@ batch_size: 128
 # update the target network every {} training steps
 target_update_interval_or_tau: 0.01
 
-lr: 0.00001
+lr: 0.00006
 hidden_dim: 128
+grad_norm_clip: 2
 
 obs_agent_id: True
 obs_last_action: False
@@ -49,7 +50,7 @@ contract_params_range: [0.0, 10.0]
 solver: True                    # If True, perform a second-stage negotiation training
 solver_timestep: 50000          # Execute solver to optimize contract after fixed time steps
 store_path: "results/moca_mappo"        # Path to store cache models checkpoints for second-stage training
-transfer_function: "default_transfer_function"
+transfer_function: "pd_transfer_function"
 
 # --- logging options
 use_tensorboard: True
