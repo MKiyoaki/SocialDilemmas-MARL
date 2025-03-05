@@ -91,10 +91,12 @@ class MeltingPotGymWrapper(Env):
 
 def register_meltingpot():
     substrates = [
-        "prisoners_dilemma_in_the_matrix__repeated",
         "clean_up",
         "coins",
-        "pure_coordination_in_the_matrix__repeated"
+        "pure_coordination_in_the_matrix__repeated",
+        "prisoners_dilemma_in_the_matrix__repeated",
+        "stag_hunt_in_the_matrix__repeated",
+        "chicken_in_the_matrix__repeated"
     ]
     for substrate_name in substrates:
         gymkey = f"pz-meltingpot-{substrate_name.replace('_', '-')}"
