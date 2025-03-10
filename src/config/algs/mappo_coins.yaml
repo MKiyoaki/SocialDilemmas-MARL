@@ -6,15 +6,15 @@ mask_before_softmax: True
 runner: "parallel"
 common_reward: False
 
-buffer_size: 64
-batch_size_run: 16
-batch_size: 32
+buffer_size: 128
+batch_size_run: 32
+batch_size: 64
 
 # update the target network every {} training steps
 target_update_interval_or_tau: 0.01
 
-lr: 0.0008
-hidden_dim: 128
+lr: 0.0004
+hidden_dim: 64
 grad_norm_clip: 2
 
 obs_agent_id: True

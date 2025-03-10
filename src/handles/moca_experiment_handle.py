@@ -1,8 +1,6 @@
 import os
-import copy
 import numpy as np
-from epymarl.src.run import run
-from src.contract.moca_solver import run_solver
+from src.run import run
 from src.handles.handles import AbstractExperimentHandle
 
 

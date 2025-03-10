@@ -2,12 +2,11 @@
 src/utils/model_utils.py
 """
 
-import os
 import torch as th
 import numpy as np
 
-from epymarl.src.controllers import REGISTRY as mac_REGISTRY
-from epymarl.src.learners import REGISTRY as le_REGISTRY
+from src.controllers import REGISTRY as mac_REGISTRY
+from src.learners import REGISTRY as le_REGISTRY
 
 
 class FrozenPolicy:

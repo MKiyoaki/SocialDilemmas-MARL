@@ -46,7 +46,7 @@ def get_solver_config_from_params(params_dict, checkpoint_paths):
     solver_config["env_args"] = merged_env_args
 
     # Create a new environment instance using the environment registry
-    from epymarl.src.envs import REGISTRY as env_REGISTRY
+    from src.envs import REGISTRY as env_REGISTRY
     env_name = solver_config.get("env", None)
     if env_name is None:
         raise ValueError("Environment name ('env') must be specified in the configuration.")

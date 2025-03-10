@@ -22,7 +22,7 @@ Contract augmentation algorithms can be used to promote the capability of agents
 - EPymarl
   ```shell
   cd epymarl
-  pip install -e .
+  pip install -f requirement.txt
   ```
 
 - Gymnasium
@@ -46,7 +46,7 @@ Contract augmentation algorithms can be used to promote the capability of agents
 
 > Alternatively, use the following command
 > ```shell
-> conda env create -n sdmarl -f environment.yaml
+> conda env create -n sdmarl -f sdmarl_requirement.yaml
 > conda activate sdmarl
 > ```
 

@@ -8,7 +8,8 @@ from components.standarize_stream import RunningMeanStd
 from modules.critics import REGISTRY as critic_resigtry
 
 # Import the Contract class and the get_transfer_function method from src.contract.contract
-from src.contract.contract import GeneralContract, get_transfer_function, default_transfer_function
+from src.contract.contract import GeneralContract, get_transfer_function
+
 
 class MOCALearner:
     def __init__(self, mac, scheme, logger, args):
