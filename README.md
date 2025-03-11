@@ -4,7 +4,7 @@
 
 ### Introduction
 
-This project aims to develop contract augmentation mechanism and integrate it into EPymarl, which is a commonly used Multi-Agent Reinforcement Learning (MARL) Algorithm Framework. 
+This project aims to develop contract augmentation mechanism and integrate it into EPyMARL, which is a commonly used Multi-Agent Reinforcement Learning (MARL) Algorithm Framework. 
 
 Contract augmentation algorithms can be used to promote the capability of agents from a MARL system under social dilemmas scenarios. Typical social dilemmas including Prisoners Dilemmas, Harvest, etc. 
 
@@ -22,7 +22,7 @@ Contract augmentation algorithms can be used to promote the capability of agents
 - EPymarl
   ```shell
   cd epymarl
-  pip install -f requirement.txt
+  pip install -r requirement.txt
   ```
 
 - Gymnasium
@@ -49,6 +49,5 @@ Contract augmentation algorithms can be used to promote the capability of agents
 > conda env create -n sdmarl -f sdmarl_requirement.yaml
 > conda activate sdmarl
 > ```
-
 
 ### Get start

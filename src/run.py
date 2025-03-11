@@ -14,11 +14,11 @@ from components.episode_buffer import ReplayBuffer
 from components.transforms import OneHot
 from learners import REGISTRY as le_REGISTRY
 from runners import REGISTRY as r_REGISTRY
+from src.utils.configuration import output_dir
 from utils.general_reward_support import test_alg_config_supports_reward
 from utils.logging import Logger
 from utils.timehelper import time_left, time_str
 
-# 新增：导入 MOCA 求解器
 from src.contract.moca_solver import run_solver
 
 
@@ -54,7 +54,7 @@ def run(_run, _config, _log):
     args.unique_token = unique_token
     if args.use_tensorboard:
         tb_logs_direc = os.path.join(
-            dirname(dirname(abspath(__file__))), "../results", "tb_logs"
+            output_dir, "tb_logs"
         )
         tb_exp_direc = os.path.join(tb_logs_direc, "{}").format(unique_token)
         logger.setup_tb(tb_exp_direc)
