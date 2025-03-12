@@ -13,4 +13,4 @@ conda activate sdmarl_shimmy
 
 export PYTHONPATH=/users/k21133239/projects/SocialDilemmas-MARL:$PYTHONPATH
 
-python ../src/main.py --config=mappo_coins --env-config=meltingpot with env_args.time_limit=300 env_args.key="pure_coordination_in_the_matrix__repeated"
+python ../src/main.py --config=mappo_coins --env-config=meltingpot with env_args.time_limit=125 env_args.key="pure_coordination_in_the_matrix__repeated"

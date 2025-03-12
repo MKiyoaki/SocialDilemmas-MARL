@@ -7,7 +7,7 @@ runner: "parallel"
 common_reward: False
 
 buffer_size: 256
-batch_size_run: 64
+batch_size_run: 128
 batch_size: 128
 
 # update the target network every {} training steps
