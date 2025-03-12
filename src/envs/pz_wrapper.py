@@ -1,10 +1,18 @@
 from pathlib import Path
 import importlib
 
+import warnings
 import gymnasium as gym
 from gymnasium.spaces import Tuple
 
 import pettingzoo
+
+try:
+    from .meltingpot_wrapper import MeltingPotPettingZooWrapper  # noqa
+except ImportError:
+    warnings.warn(
+        "PettingZoo is not installed, so these environments will not be available! To install, run `pip install pettingzoo`"
+    )
 
 
 class PettingZooWrapper(gym.Env):
@@ -13,9 +21,8 @@ class PettingZooWrapper(gym.Env):
         "render_fps": 5,
     }
 
-    def __init__(self, lib_name, env_name, render=False, **kwargs):
+    def __init__(self, lib_name, env_name, **kwargs):
         env = importlib.import_module(f"pettingzoo.{lib_name}.{env_name}")
-        render_mode = "human" if render else "rgb_array"
         self._env = env.parallel_env(**kwargs)
         self._env.reset()
 
@@ -35,7 +42,7 @@ class PettingZooWrapper(gym.Env):
         self.last_obs = obs
         return obs, info
 
-    def render(self, mode="human"):
+    def render(self):
         return self._env.render()
 
     def step(self, actions):

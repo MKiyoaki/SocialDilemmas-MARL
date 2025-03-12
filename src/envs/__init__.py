@@ -1,7 +1,6 @@
 import os
 import sys
 
-from .meltingpot_wrapper import MeltingPotPettingZooWrapper
 from .multiagentenv import MultiAgentEnv
 from .gymma import GymmaWrapper
 from .smaclite_wrapper import SMACliteWrapper
@@ -34,8 +33,10 @@ def gymma_fn(**kwargs) -> MultiAgentEnv:
     return GymmaWrapper(**kwargs)
 
 def meltingpot_fn(**kwargs) -> MultiAgentEnv:
-    key = kwargs.pop("key")
-    env_key = f"pz-meltingpot-{key.replace('_', '-')}"
+    assert "common_reward" in kwargs and "reward_scalarisation" in kwargs
+    substrate_name = kwargs.pop("key")
+    env_key = f"pz-meltingpot-{substrate_name.replace('_', '-')}"
+    kwargs["substrate_name"] = substrate_name
     return GymmaWrapper(key=env_key, **kwargs)
 
 

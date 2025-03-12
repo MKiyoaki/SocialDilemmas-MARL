@@ -6,7 +6,7 @@ mask_before_softmax: True
 runner: "parallel"
 
 buffer_size: 256
-batch_size_run: 128
+batch_size_run: 64
 batch_size: 128
 
 # update the target network every {} training steps
@@ -31,13 +31,13 @@ epochs: 10
 eps_clip: 0.2
 name: "mappo"
 
-checkpoint_path: "/media/kiyoaki/Ventoy/projects/SD_MARL/results/models/mappo_seed909905724_pz-mpe-simple-spread-v3_2025-01-21_01-09"
-load_step: 20003200
+#checkpoint_path: "/media/kiyoaki/Ventoy/projects/SD_MARL/results/models/mappo_seed909905724_pz-mpe-simple-spread-v3_2025-01-21_01-09"
+#load_step: 20003200
 
-evaluate: True
-render: True
-#evaluate: False
-#render: False
+#evaluate: True
+#render: True
+evaluate: False
+render: False
 
 use_tensorboard: True
 save_model: True

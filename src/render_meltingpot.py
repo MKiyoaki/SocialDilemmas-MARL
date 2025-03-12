@@ -23,5 +23,3 @@ if __name__ == "__main__":
     render_env(sys.argv[1])
     # render_env("collaborative_cooking__circuit")
     # render_env("collaborative_cooking__asymmetric")
-
-
